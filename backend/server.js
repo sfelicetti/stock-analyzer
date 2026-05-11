@@ -22,7 +22,6 @@ async function getQuoteData(ticker) {
       const data = await res.json();
 
       const result = data?.quoteResponse?.result?.[0];
-
       if (result) return result;
 
     } catch (e) {
@@ -37,7 +36,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 1. cerca ticker
+    // 🔍 ricerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -50,7 +49,7 @@ app.get("/api/search", async (req, res) => {
       return res.json({ error: "Ticker non trovato" });
     }
 
-    // 📈 2. grafico (safe)
+    // 📈 grafico
     let prices = [];
     let timestamps = [];
     let stats = null;
@@ -84,7 +83,7 @@ app.get("/api/search", async (req, res) => {
       console.log("Errore grafico");
     }
 
-    // ✅ 3. fundamentals con fallback
+    // ✅ fundamentals con fallback
     let pe = null;
     let eps = null;
     let beta = null;
@@ -97,7 +96,7 @@ app.get("/api/search", async (req, res) => {
       beta = quote.beta ?? null;
     }
 
-    // ✅ risposta SEMPRE valida
+    // ✅ risposta finale
     res.json({
       ticker,
       prices,
@@ -116,6 +115,7 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+// health check
 app.get("/", (req, res) => {
   res.send("Backend OK");
 });
