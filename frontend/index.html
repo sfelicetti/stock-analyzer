@@ -18,7 +18,6 @@
 
 <div id="stats"></div>
 <div id="company"></div>
-<div id="financials"></div>
 
 <script>
 let chart;
@@ -43,8 +42,6 @@ async function search() {
     new Date(t * 1000).toLocaleDateString()
   );
 
-  const prices = data.prices;
-
   if (chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
@@ -53,7 +50,7 @@ async function search() {
       labels: dates,
       datasets: [{
         label: data.ticker,
-        data: prices,
+        data: data.prices,
         borderColor: "blue"
       }]
     }
@@ -68,37 +65,12 @@ async function search() {
     Attuale: ${data.stats.current.toFixed(2)}
   `;
 
-  // info azienda
+  // info
   document.getElementById("company").innerHTML = `
-    <h3>Company</h3>
-    Settore: ${data.info.sector || "N/D"}<br>
+    <h3>Fundamentals</h3>
     P/E: ${data.info.pe || "N/D"}<br>
     EPS: ${data.info.eps || "N/D"}<br>
-    Beta: ${data.info.beta || "N/D"}<br><br>
-    ${data.info.description || ""}
-  `;
-
-  // financials
-  const f = data.financials;
-
-  function format(v) {
-    if (!v) return "N/D";
-    return (v / 1e9).toFixed(2) + " B";
-  }
-
-  function growth(g) {
-    if (g === null || g === undefined) return "";
-    const arrow = g >= 0 ? "🟢" : "🔴";
-    return ` ${arrow} ${g.toFixed(1)}%`;
-  }
-
-  document.getElementById("financials").innerHTML = `
-    <h3>Financials</h3>
-
-    Revenue: ${format(f.revenue?.value)} ${growth(f.revenue?.growth)}<br>
-    Net Income: ${format(f.netIncome?.value)} ${growth(f.netIncome?.growth)}<br>
-    Equity: ${format(f.equity?.value)} ${growth(f.equity?.growth)}<br>
-    Debt: ${format(f.debt?.value)} ${growth(f.debt?.growth)}
+    Beta: ${data.info.beta || "N/D"}
   `;
 }
 </script>
