@@ -24,7 +24,7 @@ async function search() {
   const q = document.getElementById("search").value;
 
   const res = await fetch(
-    "https://TUO-BACKEND.onrender.com/api/search?q=" + q
+    "https://backend-keo9.onrender.com/api/search?q=" + q
   );
 
   const data = await res.json();
