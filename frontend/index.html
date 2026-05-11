@@ -22,6 +22,15 @@
 <script>
 let chart;
 
+function formatNumber(n) {
+  if (!n) return "N/D";
+
+  if (n > 1e12) return (n/1e12).toFixed(2) + " T";
+  if (n > 1e9) return (n/1e9).toFixed(2) + " B";
+
+  return n.toFixed(2);
+}
+
 async function search() {
 
   const q = document.getElementById("search").value;
@@ -31,11 +40,6 @@ async function search() {
   );
 
   const data = await res.json();
-
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
 
   document.getElementById("title").innerText = data.ticker;
 
@@ -57,6 +61,7 @@ async function search() {
     }
   });
 
+  // ✅ stats
   document.getElementById("stats").innerHTML = `
     <h3>Price Stats</h3>
     Max: ${data.stats?.max?.toFixed(2) ?? "N/D"}<br>
@@ -65,8 +70,14 @@ async function search() {
     Attuale: ${data.stats?.current?.toFixed(2) ?? "N/D"}
   `;
 
+  // ✅ fundamentals migliorati
   document.getElementById("company").innerHTML = `
-    <h3>Fundamentals</h3>
+    <h3>Company</h3>
+
+    Market Cap: ${formatNumber(data.meta.marketCap)}<br>
+    Exchange: ${data.meta.exchange || "N/D"}<br>
+    Currency: ${data.meta.currency || "N/D"}<br><br>
+
     P/E: ${data.info.pe ?? "N/D"}<br>
     EPS: ${data.info.eps ?? "N/D"}<br>
     Beta: ${data.info.beta ?? "N/D"}
