@@ -5,20 +5,21 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
-<body style="font-family:Arial; padding:20px;">
+<body style="font-family: Arial; padding: 20px;">
 
 <h1>Stock Analyzer</h1>
 
-<input id="search" placeholder="Nome / ticker / ISIN">
+<input id="search" placeholder="Nome / ticker (es: Apple, MSFT)">
 <button onclick="search()">Search</button>
 
 <h2 id="title"></h2>
 
-<canvas id="chart"></canvas>
+<canvas id="chart" width="800" height="300"></canvas>
 
 <div id="stats"></div>
 
 <script>
+let chart;
 
 async function search() {
   const q = document.getElementById("search").value;
@@ -29,31 +30,45 @@ async function search() {
 
   const data = await res.json();
 
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
   document.getElementById("title").innerText = data.ticker;
 
   const dates = data.timestamps.map(t =>
     new Date(t * 1000).toLocaleDateString()
   );
 
-  new Chart(document.getElementById("chart"), {
+  const prices = data.prices;
+
+  // Distrugge grafico precedente
+  if (chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
     type: "line",
     data: {
       labels: dates,
       datasets: [{
         label: data.ticker,
-        data: data.prices
+        data: prices,
+        borderColor: "blue",
+        fill: false
       }]
+    },
+    options: {
+      responsive: true
     }
   });
 
   document.getElementById("stats").innerHTML = `
-    Max: ${data.stats.max.toFixed(2)}<br>
-    Min: ${data.stats.min.toFixed(2)}<br>
-    Avg: ${data.stats.avg.toFixed(2)}<br>
-    Current: ${data.stats.current.toFixed(2)}
+    <b>Max:</b> ${data.stats.max.toFixed(2)}<br>
+    <b>Min:</b> ${data.stats.min.toFixed(2)}<br>
+    <b>Media:</b> ${data.stats.avg.toFixed(2)}<br>
+    <b>Attuale:</b> ${data.stats.current.toFixed(2)}
   `;
 }
-
 </script>
 
 </body>
