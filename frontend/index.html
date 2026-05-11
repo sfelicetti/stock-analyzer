@@ -2,14 +2,14 @@
 <html>
 <head>
   <title>Stock Analyzer</title>
-  https://cdn.jsdelivr.net/npm/chart.jsscript>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body style="font-family: Arial; padding: 20px;">
 
 <h1>Stock Analyzer</h1>
 
-<input id="search" placeholder="Nome / ticker (es: MSFT)">
+<input id="search" placeholder="Nome o ticker (es: MSFT)">
 <button onclick="search()">Search</button>
 
 <h2 id="title"></h2>
@@ -39,7 +39,7 @@ async function search() {
 
   document.getElementById("title").innerText = data.ticker;
 
-  const dates = data.timestamps.map(t =>
+  const dates = (data.timestamps || []).map(t =>
     new Date(t * 1000).toLocaleDateString()
   );
 
@@ -51,7 +51,7 @@ async function search() {
       labels: dates,
       datasets: [{
         label: data.ticker,
-        data: data.prices,
+        data: data.prices || [],
         borderColor: "blue"
       }]
     }
