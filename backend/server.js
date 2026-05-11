@@ -9,8 +9,8 @@ const headers = {
   "User-Agent": "Mozilla/5.0"
 };
 
-// ✅ funzione quote con fallback
-async function getQuote(ticker) {
+// ✅ fallback Yahoo
+async function getQuoteData(ticker) {
   const urls = [
     `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
     `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`
@@ -20,11 +20,13 @@ async function getQuote(ticker) {
     try {
       const res = await fetch(url, { headers });
       const data = await res.json();
-      const q = data?.quoteResponse?.result?.[0];
-      if (q) return q;
-    } catch {}
-  }
+      const result = data?.quoteResponse?.result?.[0];
 
+      if (result) return result;
+    } catch (e) {
+      console.log("Errore:", url);
+    }
+  }
   return null;
 }
 
@@ -33,7 +35,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 search ticker
+    // 🔍 ricerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -42,10 +44,11 @@ app.get("/api/search", async (req, res) => {
     const searchData = await searchRes.json();
     const ticker = searchData?.quotes?.[0]?.symbol;
 
-    if (!ticker)
+    if (!ticker) {
       return res.json({ error: "Ticker non trovato" });
+    }
 
-    // 📈 chart
+    // 📈 prezzi
     const chartRes = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
       { headers }
@@ -74,13 +77,13 @@ app.get("/api/search", async (req, res) => {
       }
     }
 
-    // ✅ fallback dati da QUOTE
+    // ✅ fundamentals
     let pe = null;
     let eps = null;
     let beta = null;
     let marketCap = null;
 
-    const quote = await getQuote(ticker);
+    const quote = await getQuoteData(ticker);
 
     if (quote) {
       pe = quote.trailingPE ?? null;
@@ -89,33 +92,34 @@ app.get("/api/search", async (req, res) => {
       marketCap = quote.marketCap ?? null;
     }
 
-    // ✅ fallback extra da chart.meta
+    // ✅ meta info
     const meta = result?.meta;
-
-    const currency = meta?.currency;
-    const exchange = meta?.exchangeName;
 
     res.json({
       ticker,
       prices,
       timestamps,
       stats,
-      meta: {
-        currency,
-        exchange,
-        marketCap
-      },
       info: {
         pe,
         eps,
         beta
+      },
+      meta: {
+        exchange: meta?.exchangeName || null,
+        currency: meta?.currency || null,
+        marketCap
       }
     });
 
   } catch (e) {
-    console.error("ERRORE BACKEND:", e);
+    console.error("ERRORE:", e);
     res.status(500).json({ error: "Errore server" });
   }
+});
+
+app.get("/", (req, res) => {
+  res.send("Backend OK");
 });
 
 app.listen(process.env.PORT || 3001, () => {
