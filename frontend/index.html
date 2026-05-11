@@ -16,8 +16,10 @@
 
 <canvas id="chart" width="800" height="300"></canvas>
 
+<!-- ✅ 3 sezioni -->
 <div id="stats"></div>
-<div id="company"></div>
+<div id="fundamentals"></div>
+<div id="companyInfo"></div>
 
 <script>
 let chart;
@@ -41,6 +43,11 @@ async function search() {
 
   const data = await res.json();
 
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
   document.getElementById("title").innerText = data.ticker;
 
   const dates = (data.timestamps || []).map(t =>
@@ -61,7 +68,7 @@ async function search() {
     }
   });
 
-  // ✅ stats
+  // ✅ 1) Price Stats
   document.getElementById("stats").innerHTML = `
     <h3>Price Stats</h3>
     Max: ${data.stats?.max?.toFixed(2) ?? "N/D"}<br>
@@ -70,17 +77,21 @@ async function search() {
     Attuale: ${data.stats?.current?.toFixed(2) ?? "N/D"}
   `;
 
-  // ✅ fundamentals migliorati
-  document.getElementById("company").innerHTML = `
-    <h3>Company</h3>
-
+  // ✅ 2) Fundamentals
+  document.getElementById("fundamentals").innerHTML = `
+    <h3>Fundamentals</h3>
     Market Cap: ${formatNumber(data.meta.marketCap)}<br>
-    Exchange: ${data.meta.exchange || "N/D"}<br>
-    Currency: ${data.meta.currency || "N/D"}<br><br>
-
     P/E: ${data.info.pe ?? "N/D"}<br>
     EPS: ${data.info.eps ?? "N/D"}<br>
     Beta: ${data.info.beta ?? "N/D"}
+  `;
+
+  // ✅ 3) Company Info
+  document.getElementById("companyInfo").innerHTML = `
+    <h3>Company Info</h3>
+    Nome: ${data.ticker}<br>
+    Exchange: ${data.meta.exchange || "N/D"}<br>
+    Currency: ${data.meta.currency || "N/D"}
   `;
 }
 </script>
