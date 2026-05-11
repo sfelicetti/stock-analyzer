@@ -9,11 +9,35 @@ const headers = {
   "User-Agent": "Mozilla/5.0"
 };
 
+// ✅ funzione robusta con fallback query1 → query2
+async function getQuoteData(ticker) {
+  const urls = [
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
+    `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`
+  ];
+
+  for (let url of urls) {
+    try {
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+
+      const result = data?.quoteResponse?.result?.[0];
+
+      if (result) return result;
+
+    } catch (e) {
+      console.log("Errore su:", url);
+    }
+  }
+
+  return null;
+}
+
 app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 ricerca ticker
+    // 🔍 1. cerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -26,7 +50,7 @@ app.get("/api/search", async (req, res) => {
       return res.json({ error: "Ticker non trovato" });
     }
 
-    // 📈 prezzi (SAFE)
+    // 📈 2. grafico (safe)
     let prices = [];
     let timestamps = [];
     let stats = null;
@@ -38,11 +62,10 @@ app.get("/api/search", async (req, res) => {
       );
 
       const chartData = await chartRes.json();
-
       const result = chartData?.chart?.result?.[0];
 
       if (result) {
-        prices = result.indicators.quote[0].close || [];
+        prices = result.indicators?.quote?.[0]?.close || [];
         timestamps = result.timestamp || [];
 
         const valid = prices.filter(p => p !== null);
@@ -58,34 +81,23 @@ app.get("/api/search", async (req, res) => {
       }
 
     } catch {
-      console.log("Errore grafico (non critico)");
+      console.log("Errore grafico");
     }
 
-    // 📊 fundamentals (SAFE)
+    // ✅ 3. fundamentals con fallback
     let pe = null;
     let eps = null;
     let beta = null;
 
-    try {
-      const quoteRes = await fetch(
-        `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
-        { headers }
-      );
+    const quote = await getQuoteData(ticker);
 
-      const quoteData = await quoteRes.json();
-      const qd = quoteData?.quoteResponse?.result?.[0];
-
-      if (qd) {
-        pe = qd.trailingPE ?? null;
-        eps = qd.epsTrailingTwelveMonths ?? null;
-        beta = qd.beta ?? null;
-      }
-
-    } catch {
-      console.log("Errore fundamentals (non critico)");
+    if (quote) {
+      pe = quote.trailingPE ?? null;
+      eps = quote.epsTrailingTwelveMonths ?? null;
+      beta = quote.beta ?? null;
     }
 
-    // ✅ risposta sempre valida
+    // ✅ risposta SEMPRE valida
     res.json({
       ticker,
       prices,
