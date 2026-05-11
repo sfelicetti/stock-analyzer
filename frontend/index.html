@@ -3,9 +3,61 @@
 <head>
   <title>Stock Analyzer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .card {
+      background: white;
+      padding: 15px;
+      margin-top: 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    input {
+      padding: 10px;
+      width: 250px;
+    }
+
+    button {
+      padding: 10px;
+      margin-left: 10px;
+      cursor: pointer;
+      background: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+    }
+
+    a {
+      text-decoration: none;
+      color: #0078d4;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
 </head>
 
-<body style="font-family: Arial; padding: 20px;">
+<body>
+
+<div class="container">
 
 <h1>Stock Analyzer</h1>
 
@@ -14,27 +66,22 @@
 
 <h2 id="title"></h2>
 
-<canvas id="chart" width="800" height="300"></canvas>
+<canvas id="chart"></canvas>
 
-<!-- ✅ 3 sezioni -->
-<div id="stats"></div>
-<div id="fundamentals"></div>
-<div id="companyInfo"></div>
+<div class="card" id="stats"></div>
+<div class="card" id="fundamentals"></div>
+<div class="card" id="news"></div>
+
+</div>
 
 <script>
 let chart;
 
-function formatNumber(n) {
-  if (!n) return "N/D";
-
-  if (n > 1e12) return (n/1e12).toFixed(2) + " T";
-  if (n > 1e9) return (n/1e9).toFixed(2) + " B";
-
-  return n.toFixed(2);
+function format(n) {
+  return n ? n.toFixed(2) : "N/D";
 }
 
 async function search() {
-
   const q = document.getElementById("search").value;
 
   const res = await fetch(
@@ -42,11 +89,6 @@ async function search() {
   );
 
   const data = await res.json();
-
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
 
   document.getElementById("title").innerText = data.ticker;
 
@@ -62,36 +104,34 @@ async function search() {
       labels: dates,
       datasets: [{
         label: data.ticker,
-        data: data.prices || [],
+        data: data.prices,
         borderColor: "blue"
       }]
     }
   });
 
-  // ✅ 1) Price Stats
+  // stats
   document.getElementById("stats").innerHTML = `
     <h3>Price Stats</h3>
-    Max: ${data.stats?.max?.toFixed(2) ?? "N/D"}<br>
-    Min: ${data.stats?.min?.toFixed(2) ?? "N/D"}<br>
-    Media: ${data.stats?.avg?.toFixed(2) ?? "N/D"}<br>
-    Attuale: ${data.stats?.current?.toFixed(2) ?? "N/D"}
+    Max: ${format(data.stats?.max)}<br>
+    Min: ${format(data.stats?.min)}<br>
+    Avg: ${format(data.stats?.avg)}<br>
+    Current: ${format(data.stats?.current)}
   `;
 
-  // ✅ 2) Fundamentals
+  // fundamentals
   document.getElementById("fundamentals").innerHTML = `
     <h3>Fundamentals</h3>
-    Market Cap: ${formatNumber(data.meta.marketCap)}<br>
     P/E: ${data.info.pe ?? "N/D"}<br>
     EPS: ${data.info.eps ?? "N/D"}<br>
     Beta: ${data.info.beta ?? "N/D"}
   `;
 
-  // ✅ 3) Company Info
-  document.getElementById("companyInfo").innerHTML = `
-    <h3>Company Info</h3>
-    Nome: ${data.ticker}<br>
-    Exchange: ${data.meta.exchange || "N/D"}<br>
-    Currency: ${data.meta.currency || "N/D"}
+  // news
+  document.getElementById("news").innerHTML = `
+    <h3>News</h3>
+    ${data.news.map(n => `
+      <p><a href="${n.link}"oin("")}
   `;
 }
 </script>
