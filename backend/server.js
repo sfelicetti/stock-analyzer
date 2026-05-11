@@ -13,7 +13,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 ricerca ticker
+    // 🔍 1. ricerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -26,7 +26,7 @@ app.get("/api/search", async (req, res) => {
       return res.json({ error: "Ticker non trovato" });
     }
 
-    // 📈 prezzi
+    // 📈 2. prezzi
     const chartRes = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
       { headers }
@@ -39,13 +39,11 @@ app.get("/api/search", async (req, res) => {
     }
 
     const result = chartData.chart.result[0];
-
     const prices = result.indicators.quote[0].close;
     const timestamps = result.timestamp;
-
     const validPrices = prices.filter(p => p !== null);
 
-    // 📊 info azienda (SAFE MODE ✅)
+    // 📊 3. info azienda
     let description = null;
     let sector = null;
     let pe = null;
@@ -59,7 +57,6 @@ app.get("/api/search", async (req, res) => {
       );
 
       const infoData = await infoRes.json();
-
       const info = infoData?.quoteSummary?.result?.[0];
 
       if (info) {
@@ -70,28 +67,83 @@ app.get("/api/search", async (req, res) => {
         eps = info?.defaultKeyStatistics?.trailingEps?.raw || null;
       }
 
-    } catch (err) {
+    } catch {
       console.log("Errore info (non critico)");
     }
 
-    // ✅ risposta finale
+    // 📊 4. BILANCI ✅
+    let financials = {};
+
+    try {
+      const finRes = await fetch(
+        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=incomeStatementHistory,balanceSheetHistory`,
+        { headers }
+      );
+
+      const finData = await finRes.json();
+      const fin = finData?.quoteSummary?.result?.[0];
+
+      const income = fin?.incomeStatementHistory?.incomeStatementHistory;
+      const balance = fin?.balanceSheetHistory?.balanceSheetStatements;
+
+      if (income && balance && income.length >= 2 && balance.length >= 2) {
+        const currIncome = income[0];
+        const prevIncome = income[1];
+
+        const currBalance = balance[0];
+        const prevBalance = balance[1];
+
+        const revenue = currIncome.totalRevenue?.raw;
+        const revenuePrev = prevIncome.totalRevenue?.raw;
+
+        const netIncome = currIncome.netIncome?.raw;
+        const netIncomePrev = prevIncome.netIncome?.raw;
+
+        const equity = currBalance.totalStockholderEquity?.raw;
+        const equityPrev = prevBalance.totalStockholderEquity?.raw;
+
+        const debt = currBalance.totalDebt?.raw;
+        const debtPrev = prevBalance.totalDebt?.raw;
+
+        const growth = (curr, prev) => {
+          if (!curr || !prev) return null;
+          return ((curr - prev) / prev) * 100;
+        };
+
+        financials = {
+          revenue: { value: revenue, growth: growth(revenue, revenuePrev) },
+          netIncome: { value: netIncome, growth: growth(netIncome, netIncomePrev) },
+          equity: { value: equity, growth: growth(equity, equityPrev) },
+          debt: { value: debt, growth: growth(debt, debtPrev) }
+        };
+      }
+
+    } catch {
+      console.log("Errore bilanci (non critico)");
+    }
+
+    // ✅ risposta
     res.json({
       ticker,
       prices,
       timestamps,
+
       stats: {
         max: Math.max(...validPrices),
         min: Math.min(...validPrices),
         avg: validPrices.reduce((a,b)=>a+b,0)/validPrices.length,
         current: validPrices[validPrices.length - 1]
       },
+
       info: {
         description,
         sector,
         pe,
         beta,
         eps
-      }
+      },
+
+      financials
     });
 
   } catch (e) {
