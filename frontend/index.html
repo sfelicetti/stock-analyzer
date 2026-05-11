@@ -18,6 +18,8 @@
 
 <div id="stats"></div>
 
+<div id="company"></div>
+
 <script>
 let chart;
 
@@ -43,7 +45,6 @@ async function search() {
 
   const prices = data.prices;
 
-  // Distrugge grafico precedente
   if (chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
@@ -67,6 +68,18 @@ async function search() {
     <b>Min:</b> ${data.stats.min.toFixed(2)}<br>
     <b>Media:</b> ${data.stats.avg.toFixed(2)}<br>
     <b>Attuale:</b> ${data.stats.current.toFixed(2)}
+  `;
+
+  document.getElementById("company").innerHTML = `
+    <h3>Company Info</h3>
+    <p><b>Settore:</b> ${data.info.sector || "N/D"}</p>
+    <p><b>P/E:</b> ${data.info.pe || "N/D"}</p>
+    <p><b>EPS:</b> ${data.info.eps || "N/D"}</p>
+    <p><b>Beta:</b> ${data.info.beta || "N/D"}</p>
+    <p style="max-width:800px;">
+      <b>Descrizione:</b><br>
+      ${data.info.description || "N/D"}
+    </p>
   `;
 }
 </script>
