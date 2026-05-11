@@ -43,7 +43,7 @@ app.get("/api/search", async (req, res) => {
     const timestamps = result.timestamp;
     const validPrices = prices.filter(p => p !== null);
 
-    // 📊 3. info azienda
+    // ✅ INFO ROBUSTE (endpoint stabile)
     let description = null;
     let sector = null;
     let pe = null;
@@ -51,8 +51,26 @@ app.get("/api/search", async (req, res) => {
     let eps = null;
 
     try {
+      const quoteRes = await fetch(
+        `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
+        { headers }
+      );
+
+      const quoteData = await quoteRes.json();
+      const qdata = quoteData.quoteResponse.result?.[0];
+
+      if (qdata) {
+        pe = qdata.trailingPE || null;
+        beta = qdata.beta || null;
+        eps = qdata.epsTrailingTwelveMonths || null;
+      }
+    } catch {
+      console.log("Errore quote");
+    }
+
+    try {
       const infoRes = await fetch(
-        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,defaultKeyStatistics,summaryDetail`,
+        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile`,
         { headers }
       );
 
@@ -62,17 +80,18 @@ app.get("/api/search", async (req, res) => {
       if (info) {
         description = info?.assetProfile?.longBusinessSummary || null;
         sector = info?.assetProfile?.sector || null;
-        pe = info?.summaryDetail?.trailingPE?.raw || null;
-        beta = info?.summaryDetail?.beta?.raw || null;
-        eps = info?.defaultKeyStatistics?.trailingEps?.raw || null;
       }
-
     } catch {
-      console.log("Errore info (non critico)");
+      console.log("Errore descrizione");
     }
 
-    // 📊 4. BILANCI ✅
-    let financials = {};
+    // ✅ FINANCIALS ROBUSTI
+    let financials = {
+      revenue: {},
+      netIncome: {},
+      equity: {},
+      debt: {}
+    };
 
     try {
       const finRes = await fetch(
@@ -83,46 +102,41 @@ app.get("/api/search", async (req, res) => {
       const finData = await finRes.json();
       const fin = finData?.quoteSummary?.result?.[0];
 
-      const income = fin?.incomeStatementHistory?.incomeStatementHistory;
-      const balance = fin?.balanceSheetHistory?.balanceSheetStatements;
+      const income = fin?.incomeStatementHistory?.incomeStatementHistory || [];
+      const balance = fin?.balanceSheetHistory?.balanceSheetStatements || [];
 
-      if (income && balance && income.length >= 2 && balance.length >= 2) {
-        const currIncome = income[0];
-        const prevIncome = income[1];
+      const growth = (curr, prev) =>
+        curr && prev ? ((curr - prev) / prev) * 100 : null;
 
-        const currBalance = balance[0];
-        const prevBalance = balance[1];
-
-        const revenue = currIncome.totalRevenue?.raw;
-        const revenuePrev = prevIncome.totalRevenue?.raw;
-
-        const netIncome = currIncome.netIncome?.raw;
-        const netIncomePrev = prevIncome.netIncome?.raw;
-
-        const equity = currBalance.totalStockholderEquity?.raw;
-        const equityPrev = prevBalance.totalStockholderEquity?.raw;
-
-        const debt = currBalance.totalDebt?.raw;
-        const debtPrev = prevBalance.totalDebt?.raw;
-
-        const growth = (curr, prev) => {
-          if (!curr || !prev) return null;
-          return ((curr - prev) / prev) * 100;
+      if (income.length >= 2) {
+        financials.revenue = {
+          value: income[0].totalRevenue?.raw,
+          growth: growth(income[0].totalRevenue?.raw, income[1].totalRevenue?.raw)
         };
 
-        financials = {
-          revenue: { value: revenue, growth: growth(revenue, revenuePrev) },
-          netIncome: { value: netIncome, growth: growth(netIncome, netIncomePrev) },
-          equity: { value: equity, growth: growth(equity, equityPrev) },
-          debt: { value: debt, growth: growth(debt, debtPrev) }
+        financials.netIncome = {
+          value: income[0].netIncome?.raw,
+          growth: growth(income[0].netIncome?.raw, income[1].netIncome?.raw)
+        };
+      }
+
+      if (balance.length >= 2) {
+        financials.equity = {
+          value: balance[0].totalStockholderEquity?.raw,
+          growth: growth(balance[0].totalStockholderEquity?.raw, balance[1].totalStockholderEquity?.raw)
+        };
+
+        financials.debt = {
+          value: balance[0].totalDebt?.raw,
+          growth: growth(balance[0].totalDebt?.raw, balance[1].totalDebt?.raw)
         };
       }
 
     } catch {
-      console.log("Errore bilanci (non critico)");
+      console.log("Errore bilanci");
     }
 
-    // ✅ risposta
+    // ✅ risposta finale
     res.json({
       ticker,
       prices,
