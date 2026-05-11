@@ -3,7 +3,7 @@
 <head>
   <title>Stock Analyzer</title>
 
-  <!-- ✅ FIX CRITICO -->
+  <!-- ✅ FIX CHART.JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -26,8 +26,12 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
+    input {
+      padding: 10px;
+    }
+
     button {
-      padding: 8px 12px;
+      padding: 10px;
       background: #0078d4;
       color: white;
       border: none;
@@ -35,23 +39,25 @@
       cursor: pointer;
     }
 
-    input {
-      padding: 8px;
-    }
-
     a {
       color: #0078d4;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
 
 <body>
+
 <div class="container">
 
 <h1>Stock Analyzer</h1>
 
-<input id="search" placeholder="MSFT">
-<button onclick="runSearch()">Search</button>
+<input id="searchInput" placeholder="MSFT">
+<button onclick="searchStock()">Search</button>
 
 <h2 id="title"></h2>
 
@@ -64,12 +70,14 @@
 </div>
 
 <script>
-let chart;
 
-// ✅ rinominata funzione (fix errore search())
-async function runSearch() {
+let chart = null;
 
-  const q = document.getElementById("search").value;
+async function searchStock() {
+
+  const q = document.getElementById("searchInput").value;
+
+  if (!q) return alert("Inserisci un ticker");
 
   const res = await fetch(
     "https://backend-keo9.onrender.com/api/search?q=" + q
@@ -77,13 +85,17 @@ async function runSearch() {
 
   const data = await res.json();
 
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
   document.getElementById("title").innerText = data.ticker;
 
-  const labels = data.timestamps.map(t =>
+  const labels = (data.timestamps || []).map(t =>
     new Date(t * 1000).toLocaleDateString()
   );
 
-  // grafico
   if (chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
@@ -91,14 +103,14 @@ async function runSearch() {
     data: {
       labels: labels,
       datasets: [{
-        data: data.prices,
-        borderColor: "blue",
-        label: data.ticker
+        label: data.ticker,
+        data: data.prices || [],
+        borderColor: "blue"
       }]
     }
   });
 
-  // ✅ stats
+  // ✅ STATS
   document.getElementById("stats").innerHTML =
     "<h3>Price Stats</h3>" +
     "Max: " + (data.stats?.max?.toFixed(2) || "N/D") + "<br>" +
@@ -106,24 +118,25 @@ async function runSearch() {
     "Avg: " + (data.stats?.avg?.toFixed(2) || "N/D") + "<br>" +
     "Current: " + (data.stats?.current?.toFixed(2) || "N/D");
 
-  // ✅ fundamentals
+  // ✅ FUNDAMENTALS
   document.getElementById("fundamentals").innerHTML =
     "<h3>Fundamentals</h3>" +
-    "P/E: " + (data.info.pe ?? "N/D") + "<br>" +
-    "EPS: " + (data.info.eps ?? "N/D") + "<br>" +
-    "Beta: " + (data.info.beta ?? "N/D");
+    "P/E: " + (data.info?.pe ?? "N/D") + "<br>" +
+    "EPS: " + (data.info?.eps ?? "N/D") + "<br>" +
+    "Beta: " + (data.info?.beta ?? "N/D");
 
-  // ✅ news (fix HTML)
-  let newsHTML = "<h3>News</h3>";
+  // ✅ NEWS
+  let html = "<h3>News</h3>";
 
   if (data.news && data.news.length > 0) {
     data.news.forEach(n => {
-      newsHTML += `<p><a href="${n.link}"lse {
-    newsHTML += "Nessuna news disponibile";
+      html += `<p><a href="${n.link}" target="_blank{
+    html += "Nessuna news disponibile";
   }
 
-  document.getElementById("news").innerHTML = newsHTML;
+  document.getElementById("news").innerHTML = html;
 }
+
 </script>
 
 </body>
