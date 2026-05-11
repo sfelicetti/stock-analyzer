@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stock Analyzer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body style="font-family:Arial; padding:20px;">
+
+<h1>Stock Analyzer</h1>
+
+<input id="search" placeholder="Ticker / ISIN / Nome">
+<button onclick="search()">Search</button>
+
+<h2 id="name"></h2>
+<p id="desc"></p>
+
+<canvas id="chart" width="800" height="300"></canvas>
+
+<script>
+let chart;
+
+async function search() {
+  const q = document.getElementById("search").value;
+
+  const res = await fetch(
+    "https://TUO-BACKEND.onrender.com/api/company?q=" + q
+  );
+  const data = await res.json();
+
+  document.getElementById("name").innerText = data.profile.companyName;
+  document.getElementById("desc").innerText = data.profile.description;
+
+  const labels = data.history.map(x => x.date).reverse();
+  const prices = data.history.map(x => x.close).reverse();
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{ label: "Price", data: prices }]
+    }
+  });
+}
+</script>
+
+</body>
+</html>
