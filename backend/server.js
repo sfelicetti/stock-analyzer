@@ -9,8 +9,8 @@ const headers = {
   "User-Agent": "Mozilla/5.0"
 };
 
-// ✅ funzione robusta con fallback query1 → query2
-async function getQuoteData(ticker) {
+// ✅ funzione quote con fallback
+async function getQuote(ticker) {
   const urls = [
     `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
     `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`
@@ -20,23 +20,20 @@ async function getQuoteData(ticker) {
     try {
       const res = await fetch(url, { headers });
       const data = await res.json();
-
-      const result = data?.quoteResponse?.result?.[0];
-      if (result) return result;
-
-    } catch (e) {
-      console.log("Errore su:", url);
-    }
+      const q = data?.quoteResponse?.result?.[0];
+      if (q) return q;
+    } catch {}
   }
 
   return null;
 }
 
 app.get("/api/search", async (req, res) => {
+
   const q = req.query.q;
 
   try {
-    // 🔍 ricerca ticker
+    // 🔍 search ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -45,63 +42,69 @@ app.get("/api/search", async (req, res) => {
     const searchData = await searchRes.json();
     const ticker = searchData?.quotes?.[0]?.symbol;
 
-    if (!ticker) {
+    if (!ticker)
       return res.json({ error: "Ticker non trovato" });
-    }
 
-    // 📈 grafico
+    // 📈 chart
+    const chartRes = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
+      { headers }
+    );
+
+    const chartData = await chartRes.json();
+    const result = chartData?.chart?.result?.[0];
+
     let prices = [];
     let timestamps = [];
     let stats = null;
 
-    try {
-      const chartRes = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
-        { headers }
-      );
+    if (result) {
+      prices = result.indicators?.quote?.[0]?.close || [];
+      timestamps = result.timestamp || [];
 
-      const chartData = await chartRes.json();
-      const result = chartData?.chart?.result?.[0];
+      const valid = prices.filter(p => p !== null);
 
-      if (result) {
-        prices = result.indicators?.quote?.[0]?.close || [];
-        timestamps = result.timestamp || [];
-
-        const valid = prices.filter(p => p !== null);
-
-        if (valid.length > 0) {
-          stats = {
-            max: Math.max(...valid),
-            min: Math.min(...valid),
-            avg: valid.reduce((a,b)=>a+b,0)/valid.length,
-            current: valid[valid.length - 1]
-          };
-        }
+      if (valid.length > 0) {
+        stats = {
+          max: Math.max(...valid),
+          min: Math.min(...valid),
+          avg: valid.reduce((a,b)=>a+b,0)/valid.length,
+          current: valid[valid.length - 1]
+        };
       }
-
-    } catch {
-      console.log("Errore grafico");
     }
 
-    // ✅ fundamentals con fallback
+    // ✅ fallback dati da QUOTE
     let pe = null;
     let eps = null;
     let beta = null;
+    let marketCap = null;
 
-    const quote = await getQuoteData(ticker);
+    const quote = await getQuote(ticker);
 
     if (quote) {
       pe = quote.trailingPE ?? null;
       eps = quote.epsTrailingTwelveMonths ?? null;
       beta = quote.beta ?? null;
+      marketCap = quote.marketCap ?? null;
     }
 
-    // ✅ risposta finale
+    // ✅ fallback extra da chart.meta
+    const meta = result?.meta;
+
+    const currency = meta?.currency;
+    const exchange = meta?.exchangeName;
+
     res.json({
       ticker,
       prices,
       timestamps,
       stats,
+      meta: {
+        currency,
+        exchange,
+        marketCap
+      },
       info: {
         pe,
         eps,
@@ -113,11 +116,6 @@ app.get("/api/search", async (req, res) => {
     console.error("ERRORE BACKEND:", e);
     res.status(500).json({ error: "Errore server" });
   }
-});
-
-// health check
-app.get("/", (req, res) => {
-  res.send("Backend OK");
 });
 
 app.listen(process.env.PORT || 3001, () => {
