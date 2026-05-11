@@ -131,16 +131,16 @@ async function searchStock() {
     "Beta: " + (data.info?.beta ?? "N/D");
 
   // ✅ news
-  let html = "<h3>News</h3>";
+  
+let html = "<h3>News</h3>";
 
-  if (data.news && data.news.length > 0) {
-    data.news.forEach(n => {
-      html += `<p><a hrefp>`;
-    });
-  } else {
-    html += "Nessuna news disponibile";
-  }
-
+if (data.news && data.news.length > 0) {
+  data.news.forEach(n => {
+    html += `<p><a href="${n.link}" target="_blank">${n.title}</a></p>`;
+  });
+} else {
+  html += "Nessuna news disponibile";
+}
   document.getElementById("news").innerHTML = html;
 }
 
