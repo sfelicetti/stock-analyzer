@@ -17,8 +17,8 @@
 <canvas id="chart" width="800" height="300"></canvas>
 
 <div id="stats"></div>
-
 <div id="company"></div>
+<div id="financials"></div>
 
 <script>
 let chart;
@@ -54,32 +54,51 @@ async function search() {
       datasets: [{
         label: data.ticker,
         data: prices,
-        borderColor: "blue",
-        fill: false
+        borderColor: "blue"
       }]
-    },
-    options: {
-      responsive: true
     }
   });
 
+  // stats
   document.getElementById("stats").innerHTML = `
-    <b>Max:</b> ${data.stats.max.toFixed(2)}<br>
-    <b>Min:</b> ${data.stats.min.toFixed(2)}<br>
-    <b>Media:</b> ${data.stats.avg.toFixed(2)}<br>
-    <b>Attuale:</b> ${data.stats.current.toFixed(2)}
+    <h3>Price Stats</h3>
+    Max: ${data.stats.max.toFixed(2)}<br>
+    Min: ${data.stats.min.toFixed(2)}<br>
+    Media: ${data.stats.avg.toFixed(2)}<br>
+    Attuale: ${data.stats.current.toFixed(2)}
   `;
 
+  // company
   document.getElementById("company").innerHTML = `
-    <h3>Company Info</h3>
-    <p><b>Settore:</b> ${data.info.sector || "N/D"}</p>
-    <p><b>P/E:</b> ${data.info.pe || "N/D"}</p>
-    <p><b>EPS:</b> ${data.info.eps || "N/D"}</p>
-    <p><b>Beta:</b> ${data.info.beta || "N/D"}</p>
-    <p style="max-width:800px;">
-      <b>Descrizione:</b><br>
-      ${data.info.description || "N/D"}
-    </p>
+    <h3>Company</h3>
+    Settore: ${data.info.sector || "N/D"}<br>
+    P/E: ${data.info.pe || "N/D"}<br>
+    EPS: ${data.info.eps || "N/D"}<br>
+    Beta: ${data.info.beta || "N/D"}<br><br>
+    ${data.info.description || ""}
+  `;
+
+  // financials
+  const f = data.financials;
+
+  function format(v) {
+    if (!v) return "N/D";
+    return (v / 1e9).toFixed(2) + " B";
+  }
+
+  function growth(g) {
+    if (g === null || g === undefined) return "";
+    const arrow = g >= 0 ? "🟢" : "🔴";
+    return ` ${arrow} ${g.toFixed(1)}%`;
+  }
+
+  document.getElementById("financials").innerHTML = `
+    <h3>Financials</h3>
+
+    Revenue: ${format(f.revenue?.value)} ${growth(f.revenue?.growth)}<br>
+    Net Income: ${format(f.netIncome?.value)} ${growth(f.netIncome?.growth)}<br>
+    Equity: ${format(f.equity?.value)} ${growth(f.equity?.growth)}<br>
+    Debt: ${format(f.debt?.value)} ${growth(f.debt?.growth)}
   `;
 }
 </script>
