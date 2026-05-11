@@ -13,7 +13,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 1. ricerca ticker
+    // 🔍 ricerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -26,13 +26,18 @@ app.get("/api/search", async (req, res) => {
       return res.json({ error: "Ticker non trovato" });
     }
 
-    // 📈 2. storico prezzi
+    // 📈 prezzi
     const chartRes = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
       { headers }
     );
 
     const chartData = await chartRes.json();
+
+    if (!chartData.chart?.result) {
+      return res.json({ error: "Dati grafico non disponibili" });
+    }
+
     const result = chartData.chart.result[0];
 
     const prices = result.indicators.quote[0].close;
@@ -40,35 +45,46 @@ app.get("/api/search", async (req, res) => {
 
     const validPrices = prices.filter(p => p !== null);
 
-    // 📊 3. info azienda + fondamentali
-    const infoRes = await fetch(
-      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,defaultKeyStatistics,summaryDetail`,
-      { headers }
-    );
+    // 📊 info azienda (SAFE MODE ✅)
+    let description = null;
+    let sector = null;
+    let pe = null;
+    let beta = null;
+    let eps = null;
 
-    const infoData = await infoRes.json();
-    const info = infoData.quoteSummary.result?.[0];
+    try {
+      const infoRes = await fetch(
+        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}?modules=assetProfile,defaultKeyStatistics,summaryDetail`,
+        { headers }
+      );
 
-    const description = info?.assetProfile?.longBusinessSummary;
-    const sector = info?.assetProfile?.sector;
-    const pe = info?.summaryDetail?.trailingPE?.raw;
-    const beta = info?.summaryDetail?.beta?.raw;
-    const eps = info?.defaultKeyStatistics?.trailingEps?.raw;
+      const infoData = await infoRes.json();
+
+      const info = infoData?.quoteSummary?.result?.[0];
+
+      if (info) {
+        description = info?.assetProfile?.longBusinessSummary || null;
+        sector = info?.assetProfile?.sector || null;
+        pe = info?.summaryDetail?.trailingPE?.raw || null;
+        beta = info?.summaryDetail?.beta?.raw || null;
+        eps = info?.defaultKeyStatistics?.trailingEps?.raw || null;
+      }
+
+    } catch (err) {
+      console.log("Errore info (non critico)");
+    }
 
     // ✅ risposta finale
     res.json({
       ticker,
-
       prices,
       timestamps,
-
       stats: {
         max: Math.max(...validPrices),
         min: Math.min(...validPrices),
-        avg: validPrices.reduce((a, b) => a + b, 0) / validPrices.length,
+        avg: validPrices.reduce((a,b)=>a+b,0)/validPrices.length,
         current: validPrices[validPrices.length - 1]
       },
-
       info: {
         description,
         sector,
@@ -82,11 +98,6 @@ app.get("/api/search", async (req, res) => {
     console.error("ERRORE BACKEND:", e);
     res.status(500).json({ error: "Errore server" });
   }
-});
-
-// health check
-app.get("/", (req, res) => {
-  res.send("Backend OK");
 });
 
 app.listen(process.env.PORT || 3001, () => {
