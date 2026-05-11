@@ -9,13 +9,6 @@ const headers = {
   "User-Agent": "Mozilla/5.0"
 };
 
-async function getYahooHTML(ticker) {
-  const res = await fetch(`https://finance.yahoo.com/quote/${ticker}`, {
-    headers
-  });
-  return await res.text();
-}
-
 app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
@@ -44,44 +37,32 @@ app.get("/api/search", async (req, res) => {
 
     const prices = result.indicators.quote[0].close;
     const timestamps = result.timestamp;
-
     const validPrices = prices.filter(p => p !== null);
 
-    // ✅ SCRAPING INFO
-    let pe = null;
-    let eps = null;
-    let beta = null;
+    // ✅ DATI AFFIDABILI (QUI STA LA SOLUZIONE)
+    const quoteRes = await fetch(
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
+      { headers }
+    );
 
-    try {
-      const html = await getYahooHTML(ticker);
+    const quoteData = await quoteRes.json();
+    const qd = quoteData.quoteResponse.result[0];
 
-      const extract = (label) => {
-        const regex = new RegExp(label + ".*?<span[^>]*>(.*?)<", "i");
-        const match = html.match(regex);
-        return match ? match[1] : null;
-      };
-
-      pe = extract("PE Ratio");
-      eps = extract("EPS");
-      beta = extract("Beta");
-
-    } catch {
-      console.log("Errore scraping");
-    }
+    const pe = qd?.trailingPE;
+    const eps = qd?.epsTrailingTwelveMonths;
+    const beta = qd?.beta;
 
     // ✅ risposta
     res.json({
       ticker,
       prices,
       timestamps,
-
       stats: {
         max: Math.max(...validPrices),
         min: Math.min(...validPrices),
         avg: validPrices.reduce((a,b)=>a+b,0)/validPrices.length,
         current: validPrices[validPrices.length - 1]
       },
-
       info: {
         pe,
         eps,
@@ -90,7 +71,7 @@ app.get("/api/search", async (req, res) => {
     });
 
   } catch (e) {
-    console.error("ERRORE BACKEND:", e);
+    console.error(e);
     res.status(500).json({ error: "Errore server" });
   }
 });
