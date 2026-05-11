@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Stock Analyzer</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  https://cdn.jsdelivr.net/npm/chart.jsscript>
 </head>
 
 <body style="font-family: Arial; padding: 20px;">
@@ -59,10 +59,10 @@ async function search() {
 
   document.getElementById("stats").innerHTML = `
     <h3>Price Stats</h3>
-    Max: ${data.stats.max.toFixed(2)}<br>
-    Min: ${data.stats.min.toFixed(2)}<br>
-    Media: ${data.stats.avg.toFixed(2)}<br>
-    Attuale: ${data.stats.current.toFixed(2)}
+    Max: ${data.stats?.max?.toFixed(2) ?? "N/D"}<br>
+    Min: ${data.stats?.min?.toFixed(2) ?? "N/D"}<br>
+    Media: ${data.stats?.avg?.toFixed(2) ?? "N/D"}<br>
+    Attuale: ${data.stats?.current?.toFixed(2) ?? "N/D"}
   `;
 
   document.getElementById("company").innerHTML = `
