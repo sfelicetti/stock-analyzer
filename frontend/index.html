@@ -4,45 +4,56 @@
   <title>Stock Analyzer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body style="font-family:Arial; padding:20px;">
 
 <h1>Stock Analyzer</h1>
 
-<input id="search" placeholder="Ticker / ISIN / Nome">
+<input id="search" placeholder="Nome / ticker / ISIN">
 <button onclick="search()">Search</button>
 
-<h2 id="name"></h2>
-<p id="desc"></p>
+<h2 id="title"></h2>
 
-<canvas id="chart" width="800" height="300"></canvas>
+<canvas id="chart"></canvas>
+
+<div id="stats"></div>
 
 <script>
-let chart;
 
 async function search() {
   const q = document.getElementById("search").value;
 
   const res = await fetch(
-    "https://TUO-BACKEND.onrender.com/api/company?q=" + q
+    "https://TUO-BACKEND.onrender.com/api/search?q=" + q
   );
+
   const data = await res.json();
 
-  document.getElementById("name").innerText = data.profile.companyName;
-  document.getElementById("desc").innerText = data.profile.description;
+  document.getElementById("title").innerText = data.ticker;
 
-  const labels = data.history.map(x => x.date).reverse();
-  const prices = data.history.map(x => x.close).reverse();
+  const dates = data.timestamps.map(t =>
+    new Date(t * 1000).toLocaleDateString()
+  );
 
-  if (chart) chart.destroy();
-
-  chart = new Chart(document.getElementById("chart"), {
+  new Chart(document.getElementById("chart"), {
     type: "line",
     data: {
-      labels: labels,
-      datasets: [{ label: "Price", data: prices }]
+      labels: dates,
+      datasets: [{
+        label: data.ticker,
+        data: data.prices
+      }]
     }
   });
+
+  document.getElementById("stats").innerHTML = `
+    Max: ${data.stats.max.toFixed(2)}<br>
+    Min: ${data.stats.min.toFixed(2)}<br>
+    Avg: ${data.stats.avg.toFixed(2)}<br>
+    Current: ${data.stats.current.toFixed(2)}
+  `;
 }
+
 </script>
 
 </body>
