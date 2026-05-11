@@ -2,22 +2,19 @@
 <html>
 <head>
   <title>Stock Analyzer</title>
+
+  <!-- ✅ FIX CRITICO -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
       font-family: Arial;
       background: #f5f7fa;
-      margin: 0;
       padding: 20px;
     }
 
-    h1 {
-      text-align: center;
-    }
-
     .container {
-      max-width: 1000px;
+      max-width: 900px;
       margin: auto;
     }
 
@@ -25,44 +22,36 @@
       background: white;
       padding: 15px;
       margin-top: 15px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    input {
-      padding: 10px;
-      width: 250px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
 
     button {
-      padding: 10px;
-      margin-left: 10px;
-      cursor: pointer;
+      padding: 8px 12px;
       background: #0078d4;
       color: white;
       border: none;
       border-radius: 5px;
+      cursor: pointer;
+    }
+
+    input {
+      padding: 8px;
     }
 
     a {
-      text-decoration: none;
       color: #0078d4;
-    }
-
-    a:hover {
-      text-decoration: underline;
     }
   </style>
 </head>
 
 <body>
-
 <div class="container">
 
 <h1>Stock Analyzer</h1>
 
-<input id="search" placeholder="Nome o ticker (es: MSFT)">
-<button onclick="search()">Search</button>
+<input id="search" placeholder="MSFT">
+<button onclick="runSearch()">Search</button>
 
 <h2 id="title"></h2>
 
@@ -77,11 +66,9 @@
 <script>
 let chart;
 
-function format(n) {
-  return n ? n.toFixed(2) : "N/D";
-}
+// ✅ rinominata funzione (fix errore search())
+async function runSearch() {
 
-async function search() {
   const q = document.getElementById("search").value;
 
   const res = await fetch(
@@ -92,47 +79,50 @@ async function search() {
 
   document.getElementById("title").innerText = data.ticker;
 
-  const dates = (data.timestamps || []).map(t =>
+  const labels = data.timestamps.map(t =>
     new Date(t * 1000).toLocaleDateString()
   );
 
+  // grafico
   if (chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
     type: "line",
     data: {
-      labels: dates,
+      labels: labels,
       datasets: [{
-        label: data.ticker,
         data: data.prices,
-        borderColor: "blue"
+        borderColor: "blue",
+        label: data.ticker
       }]
     }
   });
 
-  // stats
-  document.getElementById("stats").innerHTML = `
-    <h3>Price Stats</h3>
-    Max: ${format(data.stats?.max)}<br>
-    Min: ${format(data.stats?.min)}<br>
-    Avg: ${format(data.stats?.avg)}<br>
-    Current: ${format(data.stats?.current)}
-  `;
+  // ✅ stats
+  document.getElementById("stats").innerHTML =
+    "<h3>Price Stats</h3>" +
+    "Max: " + (data.stats?.max?.toFixed(2) || "N/D") + "<br>" +
+    "Min: " + (data.stats?.min?.toFixed(2) || "N/D") + "<br>" +
+    "Avg: " + (data.stats?.avg?.toFixed(2) || "N/D") + "<br>" +
+    "Current: " + (data.stats?.current?.toFixed(2) || "N/D");
 
-  // fundamentals
-  document.getElementById("fundamentals").innerHTML = `
-    <h3>Fundamentals</h3>
-    P/E: ${data.info.pe ?? "N/D"}<br>
-    EPS: ${data.info.eps ?? "N/D"}<br>
-    Beta: ${data.info.beta ?? "N/D"}
-  `;
+  // ✅ fundamentals
+  document.getElementById("fundamentals").innerHTML =
+    "<h3>Fundamentals</h3>" +
+    "P/E: " + (data.info.pe ?? "N/D") + "<br>" +
+    "EPS: " + (data.info.eps ?? "N/D") + "<br>" +
+    "Beta: " + (data.info.beta ?? "N/D");
 
-  // news
-  document.getElementById("news").innerHTML = `
-    <h3>News</h3>
-    ${data.news.map(n => `
-      <p><a href="${n.link}"oin("")}
-  `;
+  // ✅ news (fix HTML)
+  let newsHTML = "<h3>News</h3>";
+
+  if (data.news && data.news.length > 0) {
+    data.news.forEach(n => {
+      newsHTML += `<p><a href="${n.link}"lse {
+    newsHTML += "Nessuna news disponibile";
+  }
+
+  document.getElementById("news").innerHTML = newsHTML;
 }
 </script>
 
