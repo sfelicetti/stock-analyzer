@@ -9,7 +9,7 @@ const headers = {
   "User-Agent": "Mozilla/5.0"
 };
 
-// ✅ fallback Yahoo
+// ✅ fallback quote
 async function getQuoteData(ticker) {
   const urls = [
     `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${ticker}`,
@@ -21,21 +21,40 @@ async function getQuoteData(ticker) {
       const res = await fetch(url, { headers });
       const data = await res.json();
       const result = data?.quoteResponse?.result?.[0];
-
       if (result) return result;
-    } catch (e) {
-      console.log("Errore:", url);
-    }
+    } catch {}
   }
   return null;
 }
 
-app.get("/api/search", async (req, res) => {
+// ✅ news via RSS Google News
+async function getNews(ticker) {
+  try {
+    const url = `https://news.google.com/rss/search?q=${ticker}+stock`;
+    const res = await fetch(url);
+    const text = await res.text();
 
+    // parsing semplice RSS
+    const items = [...text.matchAll(/<item>(.*?)<\/item>/gs)].slice(0, 5);
+
+    return items.map(item => {
+      const content = item[1];
+      const title = content.match(/<title>(.*?)<\/title>/)?.[1];
+      const link = content.match(/<link>(.*?)<\/link>/)?.[1];
+
+      return { title, link };
+    });
+
+  } catch {
+    return [];
+  }
+}
+
+app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 🔍 ricerca ticker
+    // 🔍 ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`,
       { headers }
@@ -44,11 +63,9 @@ app.get("/api/search", async (req, res) => {
     const searchData = await searchRes.json();
     const ticker = searchData?.quotes?.[0]?.symbol;
 
-    if (!ticker) {
-      return res.json({ error: "Ticker non trovato" });
-    }
+    if (!ticker) return res.json({ error: "Ticker non trovato" });
 
-    // 📈 prezzi
+    // 📈 grafico
     const chartRes = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`,
       { headers }
@@ -57,43 +74,23 @@ app.get("/api/search", async (req, res) => {
     const chartData = await chartRes.json();
     const result = chartData?.chart?.result?.[0];
 
-    let prices = [];
-    let timestamps = [];
-    let stats = null;
+    let prices = result?.indicators?.quote?.[0]?.close || [];
+    let timestamps = result?.timestamp || [];
 
-    if (result) {
-      prices = result.indicators?.quote?.[0]?.close || [];
-      timestamps = result.timestamp || [];
+    const valid = prices.filter(p => p !== null);
 
-      const valid = prices.filter(p => p !== null);
-
-      if (valid.length > 0) {
-        stats = {
-          max: Math.max(...valid),
-          min: Math.min(...valid),
-          avg: valid.reduce((a,b)=>a+b,0)/valid.length,
-          current: valid[valid.length - 1]
-        };
-      }
-    }
+    const stats = valid.length > 0 ? {
+      max: Math.max(...valid),
+      min: Math.min(...valid),
+      avg: valid.reduce((a,b)=>a+b,0)/valid.length,
+      current: valid[valid.length - 1]
+    } : null;
 
     // ✅ fundamentals
-    let pe = null;
-    let eps = null;
-    let beta = null;
-    let marketCap = null;
-
     const quote = await getQuoteData(ticker);
 
-    if (quote) {
-      pe = quote.trailingPE ?? null;
-      eps = quote.epsTrailingTwelveMonths ?? null;
-      beta = quote.beta ?? null;
-      marketCap = quote.marketCap ?? null;
-    }
-
-    // ✅ meta info
-    const meta = result?.meta;
+    // ✅ news
+    const news = await getNews(ticker);
 
     res.json({
       ticker,
@@ -101,27 +98,19 @@ app.get("/api/search", async (req, res) => {
       timestamps,
       stats,
       info: {
-        pe,
-        eps,
-        beta
+        pe: quote?.trailingPE ?? null,
+        eps: quote?.epsTrailingTwelveMonths ?? null,
+        beta: quote?.beta ?? null
       },
       meta: {
-        exchange: meta?.exchangeName || null,
-        currency: meta?.currency || null,
-        marketCap
-      }
+        marketCap: quote?.marketCap ?? null
+      },
+      news
     });
 
   } catch (e) {
-    console.error("ERRORE:", e);
     res.status(500).json({ error: "Errore server" });
   }
 });
 
-app.get("/", (req, res) => {
-  res.send("Backend OK");
-});
-
-app.listen(process.env.PORT || 3001, () => {
-  console.log("Server running");
-});
+app.listen(process.env.PORT || 3001);
