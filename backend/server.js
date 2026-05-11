@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import fetch from "node-fetch";
 
 const app = express();
 app.use(cors());
@@ -8,45 +9,59 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q;
 
   try {
-    // 1️⃣ Trova ticker da nome (Yahoo search)
+    // 🔍 1. Ricerca ticker
     const searchRes = await fetch(
       `https://query1.finance.yahoo.com/v1/finance/search?q=${q}`
-    ).then(r => r.json());
+    );
+    const searchData = await searchRes.json();
 
-    const ticker = searchRes.quotes[0]?.symbol;
+    const ticker = searchData.quotes?.[0]?.symbol;
 
     if (!ticker) {
-      return res.status(404).send("Ticker non trovato");
+      return res.json({ error: "Ticker non trovato" });
     }
 
-    // 2️⃣ Prezzi 3 anni
+    // 📈 2. Storico prezzi
     const chartRes = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=3y&interval=1d`
-    ).then(r => r.json());
+    );
+    const chartData = await chartRes.json();
 
-    const result = chartRes.chart.result[0];
+    const result = chartData.chart.result[0];
 
     const prices = result.indicators.quote[0].close;
     const timestamps = result.timestamp;
 
-    // 3️⃣ Statistiche
+    // 📊 3. Statistiche
     const validPrices = prices.filter(p => p !== null);
 
     const max = Math.max(...validPrices);
     const min = Math.min(...validPrices);
-    const avg = validPrices.reduce((a,b)=>a+b,0) / validPrices.length;
+    const avg = validPrices.reduce((a, b) => a + b, 0) / validPrices.length;
     const current = validPrices[validPrices.length - 1];
 
     res.json({
       ticker,
       prices,
       timestamps,
-      stats: { max, min, avg, current }
+      stats: {
+        max,
+        min,
+        avg,
+        current
+      }
     });
 
   } catch (e) {
-    res.status(500).send("Errore server");
+    console.error(e);
+    res.status(500).json({ error: "Errore server" });
   }
 });
 
-app.listen(process.env.PORT || 3001);
+app.get("/", (req, res) => {
+  res.send("Backend OK");
+});
+
+app.listen(process.env.PORT || 3001, () => {
+  console.log("Server running");
+});
