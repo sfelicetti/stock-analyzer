@@ -3,7 +3,7 @@
 <head>
   <title>Stock Analyzer</title>
 
-  <!-- ✅ FIX CHART.JS -->
+  <!-- ✅ CORRETTO -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
@@ -57,7 +57,7 @@
 <h1>Stock Analyzer</h1>
 
 <input id="searchInput" placeholder="MSFT">
-<button onclick="searchStock()">Search</button>
+<button id="searchBtn">Search</button>
 
 <h2 id="title"></h2>
 
@@ -73,11 +73,15 @@
 
 let chart = null;
 
+// ✅ UNA SOLA FUNZIONE, DEFINITA BENE
 async function searchStock() {
 
   const q = document.getElementById("searchInput").value;
 
-  if (!q) return alert("Inserisci un ticker");
+  if (!q) {
+    alert("Inserisci un ticker");
+    return;
+  }
 
   const res = await fetch(
     "https://backend-keo9.onrender.com/api/search?q=" + q
@@ -96,6 +100,7 @@ async function searchStock() {
     new Date(t * 1000).toLocaleDateString()
   );
 
+  // ✅ grafico
   if (chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
@@ -110,7 +115,7 @@ async function searchStock() {
     }
   });
 
-  // ✅ STATS
+  // ✅ stats
   document.getElementById("stats").innerHTML =
     "<h3>Price Stats</h3>" +
     "Max: " + (data.stats?.max?.toFixed(2) || "N/D") + "<br>" +
@@ -118,24 +123,29 @@ async function searchStock() {
     "Avg: " + (data.stats?.avg?.toFixed(2) || "N/D") + "<br>" +
     "Current: " + (data.stats?.current?.toFixed(2) || "N/D");
 
-  // ✅ FUNDAMENTALS
+  // ✅ fundamentals
   document.getElementById("fundamentals").innerHTML =
     "<h3>Fundamentals</h3>" +
     "P/E: " + (data.info?.pe ?? "N/D") + "<br>" +
     "EPS: " + (data.info?.eps ?? "N/D") + "<br>" +
     "Beta: " + (data.info?.beta ?? "N/D");
 
-  // ✅ NEWS
+  // ✅ news
   let html = "<h3>News</h3>";
 
   if (data.news && data.news.length > 0) {
     data.news.forEach(n => {
-      html += `<p><a href="${n.link}" target="_blank{
+      html += `<p><a hrefp>`;
+    });
+  } else {
     html += "Nessuna news disponibile";
   }
 
   document.getElementById("news").innerHTML = html;
 }
+
+// ✅ collega il bottone DOPO
+document.getElementById("searchBtn").addEventListener("click", searchStock);
 
 </script>
 
